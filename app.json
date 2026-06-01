@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Velity",
+    "slug": "velity",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "velity",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}
