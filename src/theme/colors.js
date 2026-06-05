@@ -1,3 +1,37 @@
 export const colors = {
   primary: '#23A98D',
+  primaryDark: '#1B8770',
+  primaryLight: '#2EC4A3',
+  primarySoft: '#E8F7F3',
+
+  white: '#FFFFFF',
+  black: '#000000',
+
+  neutral50: '#F8FAFB',
+  neutral100: '#F1F4F6',
+  neutral200: '#E2E8ED',
+  neutral300: '#CBD5E0',
+  neutral400: '#94A3B8',
+  neutral500: '#64748B',
+  neutral600: '#475569',
+  neutral700: '#334155',
+  neutral800: '#1E293B',
+  neutral900: '#0F172A',
+
+  success: '#22C55E',
+  successSoft: '#DCFCE7',
+  warning: '#F59E0B',
+  warningSoft: '#FEF3C7',
+  danger: '#EF4444',
+  dangerSoft: '#FEE2E2',
+  info: '#3B82F6',
+  infoSoft: '#DBEAFE',
+
+  background: '#F8FAFB',
+  surface: '#FFFFFF',
+  border: '#E2E8ED',
+  textPrimary: '#0F172A',
+  textSecondary: '#64748B',
+  textInverse: '#FFFFFF',
+  overlay: 'rgba(15, 23, 42, 0.5)',
 };

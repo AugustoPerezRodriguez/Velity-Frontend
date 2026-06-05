@@ -1,30 +1,15 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
 
-import { colors } from '../src/theme';
+import { useAuth } from '../src/hooks/useAuth';
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Velity</Text>
-      <Text style={styles.subtitle}>Frontend initialized successfully</Text>
-    </View>
-  );
-}
+  const { isAuthenticated, isLoading } = useAuth();
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 16,
-  },
-});
+  if (isLoading) return null;
+
+  if (isAuthenticated) {
+    return <Redirect href="/(app)" />;
+  }
+
+  return <Redirect href="/(auth)/login" />;
+}
