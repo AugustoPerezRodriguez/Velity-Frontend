@@ -1,64 +1,108 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
 
-import { Avatar, Badge, Card, Screen, Text } from '../../components/ui';
-import { useResponsive } from '../../hooks/useResponsive';
-import { getFamilyMembers, getFamilySummary } from '../../services/family.service';
-import { colors, spacing } from '../../theme';
-import { getHealthStatusColor, getHealthStatusSoftColor } from '../../utils/healthStatus';
+import { Avatar, Screen, Text } from '../../components/ui';
+import { getFamilyMembers } from '../../services/family.service';
+import { colors, radii, spacing } from '../../theme';
 
-function SummaryPill({ label, value }) {
+function ActionButton({ label, onPress }) {
   return (
-    <View style={styles.pill}>
-      <Text variant="h4">{value ?? 0}</Text>
-      <Text variant="caption">{label}</Text>
-    </View>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.actionBtn, pressed && { opacity: 0.75 }]}
+    >
+      <Text style={styles.actionBtnText}>{label}</Text>
+    </Pressable>
   );
 }
 
-function FamilyMemberCard({ member, onPress }) {
-  const statusColor = getHealthStatusColor(member.healthStatus);
-  const statusBg = getHealthStatusSoftColor(member.healthStatus);
+function FamilyCard({ member, expanded, onToggle, onViewHistory, onViewCalendar, onViewMedications }) {
+  const hasAllergies = member.allergies?.length > 0;
+  const hasDiseases = member.diseases?.length > 0;
+  const showInfoPanel = hasAllergies || hasDiseases;
 
   return (
-    <Pressable onPress={onPress}>
-      <Card style={styles.memberCard}>
-        <Avatar name={member.fullName} photoUrl={member.photoUrl} size={56} />
-        <View style={styles.memberInfo}>
-          <Text variant="label">{member.fullName}</Text>
-          <Text variant="caption">{member.relationship}</Text>
-          <View style={[styles.statusTag, { backgroundColor: statusBg }]}>
-            <Text variant="caption" style={{ color: statusColor }}>
-              {member.healthStatus}
-            </Text>
+    <View style={[styles.card, expanded && styles.cardExpanded]}>
+      <Pressable onPress={onToggle} style={styles.cardHeader}>
+        <Avatar
+          name={member.fullName}
+          photoUrl={member.photoUrl}
+          size={62}
+          style={styles.avatarBorder}
+        />
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardName}>{member.fullName}</Text>
+          <View style={styles.statsRow}>
+            {member.age != null ? (
+              <Text style={styles.statText}>{member.age} años</Text>
+            ) : null}
+            {member.weight != null ? (
+              <Text style={styles.statText}>{member.weight}kg</Text>
+            ) : null}
+            {member.height != null ? (
+              <Text style={styles.statText}>{member.height}cm</Text>
+            ) : null}
           </View>
         </View>
-        <View style={styles.permissions}>
-          {member.permissions?.medicalHistory ? <Badge label="Historial" variant="info" /> : null}
-          {member.permissions?.medications ? <Badge label="Medicamentos" variant="primary" /> : null}
-          {member.permissions?.appointments ? <Badge label="Turnos" variant="neutral" /> : null}
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={22}
+          color={colors.white}
+        />
+      </Pressable>
+
+      {expanded && (
+        <View style={styles.expandedContent}>
+          <View style={styles.expandedDivider} />
+          <View style={styles.expandedBody}>
+            <View style={styles.actionsColumn}>
+              <ActionButton label="Ver historial medico" onPress={onViewHistory} />
+              <ActionButton label="Ver calendario" onPress={onViewCalendar} />
+              <ActionButton label="Ver medicamentos" onPress={onViewMedications} />
+            </View>
+
+            {showInfoPanel && (
+              <View style={styles.infoPanel}>
+                {hasAllergies && (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoLabel}>Alergias:</Text>
+                    {member.allergies.map((a, i) => (
+                      <Text key={i} style={styles.infoItem}>{a}</Text>
+                    ))}
+                  </View>
+                )}
+                {hasDiseases && (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoLabel}>Enfermedades:</Text>
+                    {member.diseases.map((d, i) => (
+                      <Text key={i} style={styles.infoItem}>{d}</Text>
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         </View>
-      </Card>
-    </Pressable>
+      )}
+    </View>
   );
 }
 
 export default function FamilyScreen() {
   const router = useRouter();
-  const { isDesktop } = useResponsive();
   const [members, setMembers] = useState([]);
-  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
   const loadFamily = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [membersData, summaryData] = await Promise.all([getFamilyMembers(), getFamilySummary()]);
-      setMembers(membersData);
-      setSummary(summaryData);
+      const data = await getFamilyMembers();
+      setMembers(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,39 +114,34 @@ export default function FamilyScreen() {
     loadFamily();
   }, [loadFamily]);
 
+  const handleToggle = (id) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
+
   return (
     <Screen loading={loading} error={error} onRetry={loadFamily} contentContainerStyle={styles.container}>
-      <Text variant="h2" style={styles.title}>
-        Mi familia
-      </Text>
+      <Text style={styles.title}>Familia</Text>
+      <Text style={styles.subtitle}>Accede a tus familiares</Text>
 
-      {summary ? (
-        <Card style={styles.summaryCard}>
-          <View style={styles.summaryRow}>
-            <SummaryPill label="Total" value={summary.totalFamilyMembers} />
-            <SummaryPill label="Hijos" value={summary.children} />
-            <SummaryPill label="Padres" value={summary.parents} />
-            <SummaryPill label="Hermanos" value={summary.siblings} />
-            <SummaryPill label="Otros" value={summary.other} />
-          </View>
-        </Card>
-      ) : null}
-
-      <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+      <View style={styles.list}>
         {members.map((member) => (
-          <View key={member.id} style={isDesktop ? styles.gridItem : undefined}>
-            <FamilyMemberCard
-              member={member}
-              onPress={() => router.push(`/(app)/family/${member.id}`)}
-            />
-          </View>
+          <FamilyCard
+            key={member.id}
+            member={member}
+            expanded={expandedId === member.id}
+            onToggle={() => handleToggle(member.id)}
+            onViewHistory={() => router.push(`/(app)/family/${member.id}/history`)}
+            onViewCalendar={() => router.push('/(app)/appointments')}
+            onViewMedications={() => router.push('/(app)/medications')}
+          />
         ))}
       </View>
 
       {members.length === 0 && !loading ? (
-        <Card>
-          <Text variant="bodySmall">No hay familiares vinculados.</Text>
-        </Card>
+        <View style={styles.emptyState}>
+          <Ionicons name="people-outline" size={52} color={colors.neutral300} />
+          <Text style={styles.emptyText}>No hay familiares vinculados.</Text>
+        </View>
       ) : null}
     </Screen>
   );
@@ -110,55 +149,126 @@ export default function FamilyScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    paddingHorizontal: spacing[4],
     paddingVertical: spacing[6],
   },
   title: {
-    marginBottom: spacing[6],
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: spacing[1],
   },
-  summaryCard: {
-    marginBottom: spacing[4],
+  subtitle: {
+    fontSize: 14,
+    color: colors.neutral500,
+    textAlign: 'center',
+    marginBottom: spacing[5],
   },
-  summaryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[4],
-    justifyContent: 'space-around',
-  },
-  pill: {
-    alignItems: 'center',
-    gap: spacing[1],
-  },
-  grid: {
+  list: {
     gap: spacing[3],
   },
-  gridDesktop: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  card: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    overflow: 'hidden',
   },
-  gridItem: {
-    width: '48%',
+  cardExpanded: {
+    borderWidth: 2,
+    borderColor: colors.primaryDark,
   },
-  memberCard: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[3],
     gap: spacing[3],
   },
-  memberInfo: {
-    flex: 1,
-    gap: spacing[1],
-  },
-  statusTag: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing[2],
-    paddingVertical: 2,
+  avatarBorder: {
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.6)',
     borderRadius: 999,
-    marginTop: spacing[1],
   },
-  permissions: {
+  cardInfo: {
+    flex: 1,
+  },
+  cardName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: spacing[1],
+  },
+  statsRow: {
     flexDirection: 'row',
+    gap: spacing[3],
     flexWrap: 'wrap',
-    gap: spacing[1],
-    maxWidth: 120,
-    justifyContent: 'flex-end',
+  },
+  statText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+  },
+  expandedContent: {
+    paddingHorizontal: spacing[4],
+    paddingBottom: spacing[4],
+  },
+  expandedDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    marginBottom: spacing[3],
+  },
+  expandedBody: {
+    flexDirection: 'row',
+    gap: spacing[3],
+  },
+  actionsColumn: {
+    gap: spacing[2],
+    flex: 1,
+  },
+  actionBtn: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: radii.lg,
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[3],
+    alignItems: 'center',
+  },
+  actionBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  infoPanel: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  infoSection: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    borderRadius: radii.md,
+    padding: spacing[2],
+  },
+  infoLabel: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: spacing[1],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  infoItem: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing[12],
+    gap: spacing[3],
+  },
+  emptyText: {
+    color: colors.neutral400,
+    fontSize: 16,
   },
 });

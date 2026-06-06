@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useResponsive } from '../../hooks/useResponsive';
 import { colors } from '../../theme';
 import { MaxWidthContainer } from './MaxWidthContainer';
+import { MobileHeader } from './MobileHeader';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 
@@ -13,6 +14,7 @@ export function AppShell() {
   if (isMobile) {
     return (
       <View style={styles.mobileRoot}>
+        <MobileHeader />
         <View style={styles.mobileContent}>
           <MaxWidthContainer>
             <Slot />

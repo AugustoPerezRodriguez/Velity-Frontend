@@ -1,6 +1,6 @@
 import { Text as RNText } from 'react-native';
 
-import { textVariants } from '../theme';
+import { textVariants } from '../../theme';
 
 export function Text({ variant = 'body', style, color, children, ...props }) {
   return (

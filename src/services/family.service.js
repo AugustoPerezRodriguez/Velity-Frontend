@@ -15,3 +15,7 @@ export async function getFamilyMember(id) {
 export async function getFamilyMemberPermissions(id) {
   return apiGet(`/api/family/${id}/permissions`);
 }
+
+export async function getFamilyMemberHistory(id) {
+  return apiGet(`/api/family/${id}/medical-history`);
+}

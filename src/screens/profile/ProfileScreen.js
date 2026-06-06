@@ -1,42 +1,43 @@
-import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Button, Card, Screen, Text } from '../../components/ui';
-import { useResponsive } from '../../hooks/useResponsive';
+import { Avatar, Screen, Text } from '../../components/ui';
+import { useAuth } from '../../hooks/useAuth';
 import { getMyProfile } from '../../services/profile.service';
-import { colors, spacing } from '../../theme';
-import { formatDate } from '../../utils/date';
-import { getHealthStatusColor, getHealthStatusSoftColor } from '../../utils/healthStatus';
+import { colors, radii, spacing } from '../../theme';
 
-function HealthStatusBadge({ status }) {
-  const color = getHealthStatusColor(status);
-  const bg = getHealthStatusSoftColor(status);
+function InfoChip({ label }) {
   return (
-    <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-      <View style={[styles.statusDot, { backgroundColor: color }]} />
-      <Text variant="label" style={{ color }}>
-        {status}
-      </Text>
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{label}</Text>
     </View>
   );
 }
 
-function InfoRow({ label, value }) {
+function SectionTitle({ children }) {
+  return <Text style={styles.sectionTitle}>{children}</Text>;
+}
+
+function ChipsRow({ items }) {
+  if (!items?.length) return null;
   return (
-    <View style={styles.infoRow}>
-      <Text variant="bodySmall">{label}</Text>
-      <Text variant="body">{value || '—'}</Text>
+    <View style={styles.chipsRow}>
+      {items.map((item, i) => (
+        <InfoChip key={i} label={item} />
+      ))}
     </View>
   );
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { isDesktop } = useResponsive();
+  const { signOut } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -55,220 +56,257 @@ export default function ProfileScreen() {
     loadProfile();
   }, [loadProfile]);
 
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      setSigningOut(false);
+    }
+  };
+
   const { user, healthStatus, allergies, conditions, criticalHistory } = profile ?? {};
+
+  const measurementChips = [
+    user?.weightKg ? `${user.weightKg}kg` : null,
+    user?.heightCm ? `${user.heightCm}cm` : null,
+    user?.age ? `${user.age} años` : null,
+  ].filter(Boolean);
+
+  const allergyNames = allergies?.map((a) => a.name ?? a) ?? [];
+  const conditionNames = conditions?.map((c) => c.name ?? c) ?? [];
 
   return (
     <Screen loading={loading} error={error} onRetry={loadProfile} contentContainerStyle={styles.container}>
-      <View style={styles.header}>
-        <Text variant="h2">Mi perfil</Text>
-        <Button title="Editar" variant="secondary" size="sm" onPress={() => router.push('/(app)/profile/edit')} />
+      {/* Name header row */}
+      <View style={styles.nameRow}>
+        <View style={styles.nameLeft}>
+          <Avatar name={user?.fullName} photoUrl={user?.photoUrl} size={44} />
+          <View>
+            <Text style={styles.fullName}>{user?.fullName ?? '—'}</Text>
+            <Text style={styles.profileLabel}>Perfil de salud</Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={() => router.push('/(app)/profile/edit')}
+          style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.75 }]}
+        >
+          <Text style={styles.editBtnText}>Editar</Text>
+        </Pressable>
       </View>
 
-      <View style={[styles.layout, isDesktop && styles.layoutDesktop]}>
-        <View style={[styles.column, isDesktop && styles.leftColumn]}>
-          <Card style={styles.profileCard}>
-            <View style={styles.profileHeader}>
-              <Avatar name={user?.fullName} photoUrl={user?.photoUrl} size={80} />
-              <View style={styles.profileInfo}>
-                <Text variant="h3">{user?.fullName || '—'}</Text>
-                <Text variant="bodySmall">{user?.email}</Text>
-                {healthStatus?.status ? <HealthStatusBadge status={healthStatus.status} /> : null}
-              </View>
-            </View>
-
-            <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <Text variant="h4">{healthStatus?.activeMedicationsCount ?? 0}</Text>
-                <Text variant="caption">Medicamentos</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text variant="h4">{healthStatus?.chronicConditionsCount ?? 0}</Text>
-                <Text variant="caption">Condiciones</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text variant="h4">{allergies?.length ?? 0}</Text>
-                <Text variant="caption">Alergias</Text>
-              </View>
-            </View>
-          </Card>
-
-          <Card style={styles.section}>
-            <Text variant="h4" style={styles.sectionTitle}>
-              Datos personales
+      {/* Estado general card */}
+      <View style={styles.statusCard}>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusEmoji}>😊</Text>
+          <View>
+            <Text style={styles.statusTitle}>Estado General</Text>
+            <Text style={styles.statusSub}>
+              {healthStatus?.status ?? 'Sin alertas críticas'}
             </Text>
-            <InfoRow label="Teléfono" value={user?.phone} />
-            <InfoRow label="Fecha de nacimiento" value={formatDate(user?.birthDate)} />
-            <InfoRow label="Edad" value={user?.age ? `${user.age} años` : null} />
-            <InfoRow label="Sexo" value={user?.gender} />
-            <InfoRow label="Grupo sanguíneo" value={user?.bloodGroup} />
-            <InfoRow label="Obra social" value={user?.obraSocial} />
-            <InfoRow label="Peso" value={user?.weightKg ? `${user.weightKg} kg` : null} />
-            <InfoRow label="Altura" value={user?.heightCm ? `${user.heightCm} cm` : null} />
-          </Card>
-        </View>
-
-        <View style={[styles.column, isDesktop && styles.rightColumn]}>
-          {allergies?.length > 0 ? (
-            <Card style={styles.section}>
-              <Text variant="h4" style={styles.sectionTitle}>
-                Alergias
-              </Text>
-              <View style={styles.tags}>
-                {allergies.map((allergy) => (
-                  <Badge key={allergy.id} label={allergy.name} variant="danger" />
-                ))}
-              </View>
-            </Card>
-          ) : null}
-
-          {conditions?.length > 0 ? (
-            <Card style={styles.section}>
-              <Text variant="h4" style={styles.sectionTitle}>
-                Condiciones crónicas
-              </Text>
-              {conditions.map((condition) => (
-                <View key={condition.id} style={styles.conditionItem}>
-                  <Text variant="body">{condition.name}</Text>
-                  {condition.type ? <Badge label={condition.type} variant="warning" /> : null}
-                </View>
-              ))}
-            </Card>
-          ) : null}
-
-          {criticalHistory?.length > 0 ? (
-            <Card style={styles.section}>
-              <Text variant="h4" style={styles.sectionTitle}>
-                Historial crítico
-              </Text>
-              {criticalHistory.map((item) => (
-                <View key={item.id} style={styles.criticalItem}>
-                  <View style={styles.criticalHeader}>
-                    <Text variant="label">{item.title}</Text>
-                    <Badge label="Crítico" variant="danger" />
-                  </View>
-                  <Text variant="bodySmall">{item.description}</Text>
-                  <Text variant="caption">{formatDate(item.date)}</Text>
-                  {item.diagnosis ? (
-                    <Text variant="caption">Diagnóstico: {item.diagnosis}</Text>
-                  ) : null}
-                  {item.treatment ? (
-                    <Text variant="caption">Tratamiento: {item.treatment}</Text>
-                  ) : null}
-                </View>
-              ))}
-            </Card>
-          ) : null}
-
-          {!allergies?.length && !conditions?.length && !criticalHistory?.length ? (
-            <Card style={styles.section}>
-              <Text variant="bodySmall">No hay información médica adicional registrada.</Text>
-            </Card>
-          ) : null}
+          </View>
         </View>
       </View>
+
+      {/* Información principal */}
+      {measurementChips.length > 0 && (
+        <View style={styles.section}>
+          <SectionTitle>Informacion Principal</SectionTitle>
+          <ChipsRow items={measurementChips} />
+        </View>
+      )}
+
+      {/* Alergias */}
+      {allergyNames.length > 0 && (
+        <View style={styles.section}>
+          <SectionTitle>Alergias</SectionTitle>
+          <ChipsRow items={allergyNames} />
+        </View>
+      )}
+
+      {/* Condiciones */}
+      {conditionNames.length > 0 && (
+        <View style={styles.section}>
+          <SectionTitle>Condiciones</SectionTitle>
+          <ChipsRow items={conditionNames} />
+        </View>
+      )}
+
+      {/* Historial crítico */}
+      {criticalHistory?.length > 0 && (
+        <View style={styles.criticalCard}>
+          <View style={styles.criticalHeader}>
+            <View style={styles.criticalIconBox}>
+              <Ionicons name="alert-circle" size={20} color={colors.danger} />
+            </View>
+            <Text style={styles.criticalTitle}>Historial critico</Text>
+          </View>
+          {criticalHistory.map((item) => (
+            <View key={item.id} style={styles.criticalItem}>
+              <Text style={styles.criticalItemTitle}>{item.title}</Text>
+              {item.date ? (
+                <Text style={styles.criticalItemDate}>
+                  {new Date(item.date).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Cerrar sesión */}
+      <Pressable
+        onPress={handleSignOut}
+        disabled={signingOut}
+        style={({ pressed }) => [styles.logoutBtn, (pressed || signingOut) && { opacity: 0.75 }]}
+      >
+        <Text style={styles.logoutBtnText}>
+          {signingOut ? 'Cerrando sesión...' : 'Cerrar Sesion'}
+        </Text>
+      </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: spacing[6],
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[5],
+    gap: spacing[4],
   },
-  header: {
+  nameRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[6],
   },
-  layout: {
-    gap: spacing[4],
-  },
-  layoutDesktop: {
+  nameLeft: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  column: {
-    gap: spacing[4],
-  },
-  leftColumn: {
+    alignItems: 'center',
+    gap: spacing[3],
     flex: 1,
   },
-  rightColumn: {
-    flex: 1.2,
+  fullName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  profileCard: {
-    gap: spacing[4],
+  profileLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
-  profileHeader: {
-    flexDirection: 'row',
-    gap: spacing[4],
-    alignItems: 'center',
-  },
-  profileInfo: {
-    flex: 1,
-    gap: spacing[1],
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+  editBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    borderRadius: 999,
-    alignSelf: 'flex-start',
-    marginTop: spacing[1],
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  editBtnText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
   },
-  statsRow: {
+  statusCard: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+  },
+  statusRow: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing[4],
-  },
-  stat: {
-    flex: 1,
     alignItems: 'center',
-    gap: spacing[1],
+    gap: spacing[3],
+  },
+  statusEmoji: {
+    fontSize: 30,
+  },
+  statusTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  statusSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 1,
   },
   section: {
-    marginBottom: 0,
+    gap: spacing[2],
   },
   sectionTitle: {
-    marginBottom: spacing[4],
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tags: {
+  chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  conditionItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  chip: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radii.full,
+    paddingHorizontal: spacing[4],
     paddingVertical: spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
-  criticalItem: {
-    paddingVertical: spacing[3],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing[1],
+  chipText: {
+    fontSize: 14,
+    color: colors.primaryDark,
+    fontWeight: '600',
+  },
+  criticalCard: {
+    backgroundColor: colors.dangerSoft,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+    gap: spacing[2],
   },
   criticalHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginBottom: spacing[1],
+  },
+  criticalIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  criticalTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.danger,
+  },
+  criticalItem: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: spacing[1],
+  },
+  criticalItemTitle: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    fontWeight: '500',
+    flex: 1,
+  },
+  criticalItemDate: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginLeft: spacing[2],
+  },
+  logoutBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    paddingVertical: spacing[4],
+    alignItems: 'center',
+    marginTop: spacing[2],
+  },
+  logoutBtnText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
